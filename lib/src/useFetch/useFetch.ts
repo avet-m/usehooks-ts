@@ -16,9 +16,6 @@ type Action<T> =
 function useFetch<T = unknown>(url?: string, options?: RequestInit): State<T> {
   const cache = useRef<Cache<T>>({})
 
-  // Used to prevent state update if the component is unmounted
-  const cancelRequest = useRef<boolean>(false)
-
   const initialState: State<T> = {
     error: undefined,
     data: undefined,
@@ -43,6 +40,8 @@ function useFetch<T = unknown>(url?: string, options?: RequestInit): State<T> {
   useEffect(() => {
     // Do nothing if the url is not given
     if (!url) return
+    // Used to prevent state update if the component is unmounted
+    let ignore = false
 
     cancelRequest.current = false
 
@@ -63,11 +62,11 @@ function useFetch<T = unknown>(url?: string, options?: RequestInit): State<T> {
 
         const data = (await response.json()) as T
         cache.current[url] = data
-        if (cancelRequest.current) return
+        if (ignore) return
 
         dispatch({ type: 'fetched', payload: data })
       } catch (error) {
-        if (cancelRequest.current) return
+        if (ignore) return
 
         dispatch({ type: 'error', payload: error as Error })
       }
@@ -78,7 +77,7 @@ function useFetch<T = unknown>(url?: string, options?: RequestInit): State<T> {
     // Use the cleanup function for avoiding a possibly...
     // ...state update after the component was unmounted
     return () => {
-      cancelRequest.current = true
+      ignore = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url])
